@@ -9,6 +9,7 @@ from copy import copy
 
 from bs4 import BeautifulSoup # creates a navigable parse tree from the HTML
 from bs4 import Tag
+import jinja2 as jin
 from rich import print # for CL pretty
 from rich.padding import Padding
 from rich.panel import Panel
@@ -110,7 +111,7 @@ def approve_comments(comments: list) -> bool:
         exit()
     return cmd == 'y'
 
-
+# REFACTORED
 def comment_html(raw_comment: Tag, soup: BeautifulSoup) -> Tag:
     """Returns a cleaned-up Tag object constructed from the given raw Tag object"""
     new_comment = soup.new_tag("div", attrs={"class": "comment"})
