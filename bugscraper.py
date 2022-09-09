@@ -75,7 +75,7 @@ def taxon_from_breadcrumbs(soup, *, use_rank=False, itals=False) -> str:
         taxon = taxon_tag.get_text()
     return taxon_rank + ' ' + taxon if use_rank else taxon
 
-
+# REFACTORED
 def print_comments(comments: list, muted=False) -> None:
     """Prints boxes with the comments' subject, body, and byline text to the terminal. If "muted", comments will print in italicized gray text"""
 
@@ -92,7 +92,7 @@ def print_comments(comments: list, muted=False) -> None:
                             style=style, border_style=border), (1,4,0,4)))
     print(" ")
 
-
+# REFACTORED
 def approve_comments(comments: list) -> bool:
     """Prints a given list of comments to the terminal, prompts user whether to save them, and returns True or False accordingly. Raises SystemExit if user opts to quit instead"""
 
@@ -110,7 +110,6 @@ def approve_comments(comments: list) -> bool:
     if cmd == 'q':
         exit()
     return cmd == 'y'
-
 
 # REFACTORED
 def comment_html(raw_comment: Tag, soup: BeautifulSoup) -> Tag:
@@ -134,7 +133,6 @@ def comment_html(raw_comment: Tag, soup: BeautifulSoup) -> Tag:
     
     new_comment.extend([subj, body, byline])
     return new_comment
-
 
 # REFACTORED
 def record_html(soup: BeautifulSoup, url, comments: list) -> Tag:
@@ -175,7 +173,7 @@ def record_html(soup: BeautifulSoup, url, comments: list) -> Tag:
     obs.extend([desc_box, ref, *comments])
     return obs
 
-
+# REFACTORED
 def process_record(url: str) -> Tag | None:
     """Builds and returns record summary as Tag object, if comments are found and one of the following conditions is met:
     (1) --ignore-moves is not set, or:

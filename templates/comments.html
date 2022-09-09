@@ -5,9 +5,19 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BugGuide comments - {# NAME #}</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="../style/style.css">
 </head>
 <body>
+    <h1>{# TAXON HEADER #}</h1>
+
+    {# SUBHEADER when a new child taxon is encountered #}
+    <div class="taxon">
+        <h2>{# TAXON #}</h2>
+        <p>
+            | <a href="{# URL #}">images for this taxon</a> 
+            | <a href="{# URL #}">position in parent taxon's images</a> |
+        </p>
+    </div>
     {% for rec in records %}
     {# RECORD component #}
     <article>
@@ -33,13 +43,13 @@
         {# COMMENT component #}
         <div class="comment{{ " mark" if c.style.highlight }}" style="margin-left: {{ c.style.indent }}rem">
             <div class="comment-subject" style="{{ "display: none" if c.style.subj_repeats }}">
-                {{ c.data.subj }}
+                {{ c.html.subj }}
             </div>
             <div class="comment-body">
-                {{ c.data.body }}
+                {{ c.html.body }}
             </div>
             <div class="comment-byline">
-                {{ c.data.byline }}
+                {{ c.html.byline }}
             </div>
         </div>
         {% endfor %}
