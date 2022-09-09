@@ -111,6 +111,7 @@ def approve_comments(comments: list) -> bool:
         exit()
     return cmd == 'y'
 
+
 # REFACTORED
 def comment_html(raw_comment: Tag, soup: BeautifulSoup) -> Tag:
     """Returns a cleaned-up Tag object constructed from the given raw Tag object"""
@@ -135,6 +136,7 @@ def comment_html(raw_comment: Tag, soup: BeautifulSoup) -> Tag:
     return new_comment
 
 
+# REFACTORED
 def record_html(soup: BeautifulSoup, url, comments: list) -> Tag:
     """Makes it all pretty in HTML."""
     # desc_box has two cols, for a thumbnail image & the user-provided metadata/details

@@ -5,107 +5,32 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BugGuide comments - {# NAME #}</title>
-    <style>
-        :root {
-            --bg-pale: #f2edd5;
-            --bg-inner: #e6dbae;
-            --bg-nav: #c6be9e;
-            --bg-nav-dark: #44402e;
-            --text-muted: #555;
-        }
-        body {
-            font-family: verdana, arial, helvetica, sans-serif;
-            padding: 2rem 10rem;
-            background-color: var(--bg-pale);
-            margin: 0;
-        }
-        h2 {
-            margin: .5rem 0;
-            font-size: 1.2rem;
-        }
-        h3 {
-            font-size: 1rem;
-        }
-        h3, .comment-subject, strong {
-            font-weight: bold;
-            color: var(--text-muted);
-        }
-        article {
-            padding: 1rem;
-            margin: 1.5rem 0;
-            background-color: white;
-            box-shadow: 0 0 6px 3px rgba(0,0,0,.2);
-            border-radius: 4px;
-        }
-        .comment {
-            border: 1px solid lightgray;
-            padding: 0.75rem;
-            margin: 0.5rem 0;
-            color: var(--text-muted);
-        }
-        .mark {
-            background-color: var(--bg-pale);
-            color: black;
-        }
-        a {
-            text-decoration: none;
-        }
-        a:hover, a:focus, a:active {
-            text-decoration: underline;
-        }
-        .taxon, h1 {
-            margin: 0 0 0 -10rem;
-            padding: 0.5rem 10rem;
-            background-color: var(--bg-inner);
-        }
-        .taxon a {
-            padding: .3em .5em;
-            font-weight: bold;
-            color: var(--bg-nav-dark);
-        }
-        .taxon a:hover, .taxon a:focus, .taxon a:active {
-            text-decoration: none;
-            background-color: var(--bg-nav-dark);
-            color: white;
-        }
-        .desc-container {
-            display: flex;
-            margin-bottom: 1rem;
-        }
-        .desc {
-            background-color: #f2edd550;
-            border-left: 3px solid var(--text-muted);
-            padding: .5rem;
-            width: 100%;
-        }
-        .desc > * {
-            margin: .5rem;
-        }
-        img {
-            width: 75px;
-            height: 75px;
-            padding-right: 1rem;
-        }
-    </style>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <!-- COMMENT component template -->
+    {% for rec in records %}
+    {# RECORD component #}
     <article>
-        <div class="desc-container">
-            <a href="{# URL #}">
-                <img src="{# URL #}" alt="">
+        <div class="record-details">
+            <a href="{{ rec.url }}">
+                <img src="{{ rec.img }}" alt="">
             </a>
             <div class="desc">
-                <h3>{# HEADER #}</h3>
-            </div>
-            <div class="where-when">
-                {# WHERE-WHEN #}
-            </div>
-            <div class="remarks">
-                {# REMARKS #}
+                <h3>{{ rec.title }}</h3>
+                <div class="metadata">
+                    {{ rec.metadata }}
+                </div>
+                <div class="remarks">
+                    {{ rec.remarks }}
+                </div>
+                <div class="byline">
+                    —<br/>{{ rec.byline }}
+                </div>
             </div>
         </div>
-        {% for c in comments %}
+        <a href="{{ rec.url }}">{{ rec.url }}</a>
+        {% for c in rec.comments %}
+        {# COMMENT component #}
         <div class="comment{{ " mark" if c.style.highlight }}" style="margin-left: {{ c.style.indent }}rem">
             <div class="comment-subject" style="{{ "display: none" if c.style.subj_repeats }}">
                 {{ c.data.subj }}
@@ -119,5 +44,6 @@
         </div>
         {% endfor %}
     </article>
+    {% endfor %}
 </body>
 </html>
