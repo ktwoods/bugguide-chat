@@ -4,56 +4,66 @@
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BugGuide comments - {# NAME #}</title>
+    <title>BugGuide comments - {{ header[0] }}</title>
     <link rel="stylesheet" href="../style/style.css">
 </head>
 <body>
-    <h1>{# TAXON HEADER #}</h1>
-
-    {# SUBHEADER when a new child taxon is encountered #}
-    <div class="taxon">
-        <h2>{# TAXON #}</h2>
-        <p>
-            | <a href="{# URL #}">images for this taxon</a> 
-            | <a href="{# URL #}">position in parent taxon's images</a> |
-        </p>
+    <div class="container">
+        <div class="header">
+            <h1>{{ header[1] }}</h1>
+            <div>
+                <a class="btn-link" href="{{ url }}">search start index</a>
+            </div>
+        </div>
+        {% for sec in sections %}
+        {# SECTION component for each child taxon #}
+        {% if sec.title != header %}
+        <div class="section-header">
+            <h2>{{ sec.title }}</h2>
+            <p>
+                | <a class="btn-link" href="{{ sec.own_page }}">guide photos for just this {{ sec.rank }}</a>
+                | <a class="btn-link" href="{{ sec.parent_page }}">page encountered within parent</a> | <span class="caveat">(at time of search)</span>
+            </p>
+        </div>
+        {% endif %}
+        {% for rec in sec.records %}
+        {# RECORD component #}
+        <article>
+            <div class="record-details">
+                <a href="{{ rec.url }}">
+                    <img src="{{ rec.img }}" alt="">
+                </a>
+                <div class="desc">
+                    <h3>{{ rec.title }}</h3>
+                    <div class="metadata">
+                        {{ rec.metadata }}
+                    </div>
+                    <div class="remarks">
+                        {{ rec.remarks }}
+                    </div>
+                    <div class="byline">
+                        —<br/>{{ rec.byline }}
+                    </div>
+                </div>
+            </div>
+            <a href="{{ rec.url }}">{{ rec.url }}</a>
+            {% for c in rec.comments %}
+            {# COMMENT component #}
+            <div class="comment{{ " mark" if c.style.highlight }}" style="margin-left: {{ c.style.indent }}rem">
+                <div class="comment-subject" style="{{ "display: none" if c.style.subj_repeats }}">
+                    {{ c.html.subj }}
+                </div>
+                <div class="comment-body">
+                    {{ c.html.body }}
+                </div>
+                <div class="comment-byline">
+                    {{ c.html.byline }}
+                </div>
+            </div>
+            {% endfor %} {# comment #}
+        </article>
+        {% endfor %} {# record #}
+        {% endfor %} {# section #}
     </div>
-    {% for rec in records %}
-    {# RECORD component #}
-    <article>
-        <div class="record-details">
-            <a href="{{ rec.url }}">
-                <img src="{{ rec.img }}" alt="">
-            </a>
-            <div class="desc">
-                <h3>{{ rec.title }}</h3>
-                <div class="metadata">
-                    {{ rec.metadata }}
-                </div>
-                <div class="remarks">
-                    {{ rec.remarks }}
-                </div>
-                <div class="byline">
-                    —<br/>{{ rec.byline }}
-                </div>
-            </div>
-        </div>
-        <a href="{{ rec.url }}">{{ rec.url }}</a>
-        {% for c in rec.comments %}
-        {# COMMENT component #}
-        <div class="comment{{ " mark" if c.style.highlight }}" style="margin-left: {{ c.style.indent }}rem">
-            <div class="comment-subject" style="{{ "display: none" if c.style.subj_repeats }}">
-                {{ c.html.subj }}
-            </div>
-            <div class="comment-body">
-                {{ c.html.body }}
-            </div>
-            <div class="comment-byline">
-                {{ c.html.byline }}
-            </div>
-        </div>
-        {% endfor %}
-    </article>
-    {% endfor %}
 </body>
 </html>

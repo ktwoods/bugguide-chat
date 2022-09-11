@@ -15,7 +15,7 @@ from rich.padding import Padding
 from rich.panel import Panel
 from rich.text import Text
 
-
+# REFACTORED
 def make_soup(url: str) -> BeautifulSoup:
     """
     Validates the URL and returns the corresponding soup. Things that aren't URLs for BugGuide,
@@ -63,7 +63,7 @@ def make_soup(url: str) -> BeautifulSoup:
     html = urlopen(correct_url).read().decode("utf-8")
     return BeautifulSoup(html, "html.parser")
 
-
+# REFACTORED
 def taxon_from_breadcrumbs(soup, *, use_rank=False, itals=False) -> str:
     """Extracts the taxon name (and potentially rank) from the end of the first set of breadcrumbs found"""
 
@@ -225,7 +225,7 @@ def process_record(url: str) -> Tag | None:
     
     return record_html(soup, url, processed)
 
-
+# REFACTORED tentatively
 def traverse_guide(start_url, f, soup) -> None:
     """Handles iterating over multiple pages"""
 
@@ -299,7 +299,6 @@ def traverse_guide(start_url, f, soup) -> None:
         next_arrow = soup.find(alt="next page")
         url = next_arrow and next_arrow.parent.get('href')
 
-
 def validate_file_name(taxon_title) -> str:
     if not args.fname:
         name = taxon_title
@@ -317,7 +316,6 @@ def validate_file_name(taxon_title) -> str:
             ver += 1
         name = vername
     return "comments/"+name+".html"
-
 
 def guidechat_to_html(url=None) -> None:
     """Main bot loop, does all the things from here. If not directly passed a URL as an arg, or if the URL
@@ -355,7 +353,7 @@ def guidechat_to_html(url=None) -> None:
     # File closed, reprint file name for ease of reference
     print(f"Results saved to '{file_name}'")
 
-
+# REFACTORED
 if __name__ == '__main__':
     global args
     desc = "Scans BugGuide's user submissions under a particular species or other taxon, and collects submission comments that might have interesting discussions or identification tips. Default output format is an .html file with some bare-bones styling for readability."

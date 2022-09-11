@@ -7,46 +7,40 @@
 }
 body {
     font-family: verdana, arial, helvetica, sans-serif;
-    padding: 2rem 10rem;
     background-color: var(--bg-pale);
-    margin: 0;
+    margin: 0
 }
+.container {
+    padding: 0 10rem;
+}
+
+/* PAGE HEADER */
+.header {
+    margin: 0 -10rem 1rem -10rem;
+    padding: .5rem 10rem;
+    background-color: var(--bg-inner);
+}
+.header div {
+    padding-bottom: 1rem;
+}
+
+/* SECTION HEADERS */
 h2 {
     margin: .5rem 0;
     font-size: 1.2rem;
 }
-h3 {
-    font-size: 1rem;
-}
-h3, .comment-subject, strong {
-    font-weight: bold;
+.caveat {
+    padding: .3em .5em;
     color: var(--text-muted);
 }
-a {
-    text-decoration: none;
-}
-a:hover, a:focus, a:active {
-    text-decoration: underline;
-}
-/* figure out a subtler click affordance later, but the link color is too loud right now */
-.byline a, .comment-byline a {
-    color: unset;
-}
-.taxon, h1 {
-    margin: 0 0 0 -10rem;
+
+.section-header {
+    margin: 1.5rem 0 1.5rem -10rem;
     padding: 0.5rem 10rem;
     background-color: var(--bg-inner);
 }
-.taxon a {
-    padding: .3em .5em;
-    font-weight: bold;
-    color: var(--bg-nav-dark);
-}
-.taxon a:hover, .taxon a:focus, .taxon a:active {
-    text-decoration: none;
-    background-color: var(--bg-nav-dark);
-    color: white;
-}
+
+/* RECORDS */
 article {
     padding: 1rem;
     margin: 1.5rem 0;
@@ -63,6 +57,13 @@ img {
     height: 75px;
     padding-right: 1rem;
 }
+h3 {
+    font-size: 1rem;
+}
+h3, .comment-subject, strong {
+    font-weight: bold;
+    color: var(--text-muted);
+}
 .desc {
     background-color: #f2edd550;
     border-left: 3px solid var(--text-muted);
@@ -75,6 +76,8 @@ img {
 .byline {
     color: var(--text-muted);
 }
+
+/* COMMENTS */
 .comment {
     border: 1px solid lightgray;
     padding: 0.75rem;
@@ -89,3 +92,32 @@ img {
     margin-top: .5rem;
     color: var(--text-muted);
 }
+
+/* LINKS */
+a {
+    text-decoration: none;
+}
+a:hover, a:focus, a:active {
+    text-decoration: underline;
+}
+/* figure out a subtler click affordance later, but the link color is too loud right now */
+.byline a, .comment-byline a {
+    color: unset;
+}
+.header .btn-link {
+    margin-bottom: 1rem;
+}
+a.btn-link {
+    padding: .3em .5em;
+    font-weight: bold;
+    color: var(--bg-nav-dark);
+}
+a.btn-link:hover, a.btn-link:focus, a.btn-link:active {
+    text-decoration: none;
+    background-color: var(--bg-nav-dark);
+    color: white;
+}
+
+
+
+

@@ -19,12 +19,12 @@ import rich.repr
 
 
 class Comment:
-    """Container for extracted HTML text and some simple style markers from a single comment on a record page
+    """Contains extracted HTML text and some simple style markers from a single comment on a record page
     
     Instance attributes
     -------------------
-    data : dict
-        Unicode string representation of the contents of div.comment-subject, div.comment-body, and div.comment-byline
+    html : dict
+        Unicode string of the contents of div.comment-subject, div.comment-body, and div.comment-byline
         subj : str
         body : str
         byline : str
@@ -35,7 +35,7 @@ class Comment:
         subj_repeats : bool
             True if the subject line just repeats the first >=30(?) characters of the body text
         indent : int
-            How much to indent a nested reply comment; converts BugGuide's 25px indent increments to multiples of 2rem
+            How much to indent a nested reply comment (converts BugGuide's 25px indent increments to multiples of 2rem)
     """
 
     def __init__(self, tag: Tag):
@@ -66,7 +66,7 @@ class Comment:
 
 
 class Record:
-    """Container for data of interest from the page for a BugGuide image submission
+    """Contains all data of interest from the page for a BugGuide image submission
     
     Instance attributes
     -------------------
@@ -122,5 +122,34 @@ class Record:
             yield self.comments
 
 
+class Section:
+    """Contains metadata and records pulled from a section within a specific taxon
 
-    
+    The guide images for taxa above species/subspecies level include the images of all descendant taxa, grouped into sections (which are displayed in sorted order corresponding to a depth-first search of the taxonomical hierarchy). A Section object may span one or more pages of results. If there are no descendant taxa, the search will result in just one Section object
+
+    Instance attributes
+    -------------------
+    title : str
+        The "»"-separated list of taxa in between this taxon and the parent taxon that appears at the top of its section. When created from process_list_page(), 
+    rank : str
+        Level in the taxonomic hierarchy, e.g. "species" or "subtribe". When created from process_list_page(), the rank will be in lowercase
+    taxon : str
+        Taxon name used by BugGuide, which may include both a scientific name and a common name, and occasionally other signifiers such as Hodges number
+    own_page : str
+        Page 1 of the Images tab for this taxon by itself
+    parent_page : str
+        The first page that this taxon was originally encountered on within the Images tab of its parent (position may have changed since the scan was done)
+    records : list[Record]
+    """
+    def __init__(self, title, rank, taxon, *, own_page, parent_page):
+        # Taxon data
+        self.title = title
+        self.rank = rank
+        self.taxon = taxon
+        # Links
+        self.own_page = own_page
+        self.parent_page = parent_page
+        # Record objects
+        self.records = []
+
+
