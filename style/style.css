@@ -1,13 +1,13 @@
 :root {
-    --bg-pale: #f2edd5;
-    --bg-inner: #e6dbae;
-    --bg-nav: #c6be9e;
-    --bg-nav-dark: #44402e;
-    --text-muted: #555;
+    --bg-body: #f2edd5;
+    --bg-header: #e6dbae;
+    --bg-nav: #c6be9e; /* not currently using */
+    --bg-btn: #44402e;
+    --muted: #555;
 }
 body {
     font-family: verdana, arial, helvetica, sans-serif;
-    background-color: var(--bg-pale);
+    background-color: var(--bg-body);
     margin: 0
 }
 .container {
@@ -18,7 +18,7 @@ body {
 .header {
     margin: 0 -10rem 1rem -10rem;
     padding: .5rem 10rem;
-    background-color: var(--bg-inner);
+    background-color: var(--bg-header);
 }
 .header div {
     padding-bottom: 1rem;
@@ -31,13 +31,17 @@ h2 {
 }
 .caveat {
     padding: .3em .5em;
-    color: var(--text-muted);
+    color: var(--muted);
+}
+.nonefound {
+    font-style: italic;
+    color: var(--muted);
 }
 
 .section-header {
     margin: 1.5rem 0 1.5rem -10rem;
     padding: 0.5rem 10rem;
-    background-color: var(--bg-inner);
+    background-color: var(--bg-header);
 }
 
 /* RECORDS */
@@ -62,11 +66,11 @@ h3 {
 }
 h3, .comment-subject, strong {
     font-weight: bold;
-    color: var(--text-muted);
+    color: var(--muted);
 }
 .desc {
     background-color: #f2edd550;
-    border-left: 3px solid var(--text-muted);
+    border-left: 3px solid var(--muted);
     padding: .5rem;
     width: 100%;
 }
@@ -74,7 +78,7 @@ h3, .comment-subject, strong {
     margin: .5rem;
 }
 .byline {
-    color: var(--text-muted);
+    color: var(--muted);
 }
 
 /* COMMENTS */
@@ -82,15 +86,15 @@ h3, .comment-subject, strong {
     border: 1px solid lightgray;
     padding: 0.75rem;
     margin: 0.5rem 0;
-    color: var(--text-muted);
+    color: var(--muted);
 }
 .mark {
-    background-color: var(--bg-pale);
+    background-color: var(--bg-body);
     color: black;
 }
 .comment-byline {
     margin-top: .5rem;
-    color: var(--text-muted);
+    color: var(--muted);
 }
 
 /* LINKS */
@@ -110,11 +114,11 @@ a:hover, a:focus, a:active {
 a.btn-link {
     padding: .3em .5em;
     font-weight: bold;
-    color: var(--bg-nav-dark);
+    color: var(--bg-btn);
 }
 a.btn-link:hover, a.btn-link:focus, a.btn-link:active {
     text-decoration: none;
-    background-color: var(--bg-nav-dark);
+    background-color: var(--bg-btn);
     color: white;
 }
 

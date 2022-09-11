@@ -17,7 +17,7 @@
         </div>
         {% for sec in sections %}
         {# SECTION component for each child taxon #}
-        {% if sec.title != header %}
+        {% if sec.rank != parent_rank or sec.rank == "section" %}
         <div class="section-header">
             <h2>{{ sec.title }}</h2>
             <p>
@@ -25,6 +25,9 @@
                 | <a class="btn-link" href="{{ sec.parent_page }}">page encountered within parent</a> | <span class="caveat">(at time of search)</span>
             </p>
         </div>
+        {% endif %}
+        {% if not sec.records %}
+        <div class="nonefound">No comments found</div>
         {% endif %}
         {% for rec in sec.records %}
         {# RECORD component #}
