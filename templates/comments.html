@@ -5,14 +5,14 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BugGuide comments - {{ header[0] }}</title>
-    <link rel="stylesheet" href="..templates/style.css">
+    <link rel="stylesheet" href="../templates/style.css">
 </head>
 <body>
     <div class="container">
         <div class="header">
             <h1>{{ header[1] }}</h1>
             <div>
-                <a class="btn-link" href="{{ url }}">search start index</a>
+                <a class="btn-link" href="{{ start_url }}">search start index</a>
             </div>
         </div>
         {% for sec in sections %}
@@ -52,15 +52,15 @@
             <a href="{{ rec.url }}">{{ rec.url }}</a>
             {% for c in rec.comments %}
             {# COMMENT component #}
-            <div class="comment{{ " mark" if c.style.highlight }}" style="margin-left: {{ c.style.indent }}rem">
-                <div class="comment-subject" style="{{ "display: none" if c.style.subj_repeats }}">
-                    {{ c.html.subj }}
+            <div class="comment{#{ " mark" if c.style.highlight }#}" style="margin-left: {{ c.depth * 2 }}rem">
+                <div class="comment-subject" style="{#{ "display: none" if c.style.subj_repeats }#}">
+                    {{ c.subj }}
                 </div>
                 <div class="comment-body">
-                    {{ c.html.body }}
+                    {{ c.body }}
                 </div>
                 <div class="comment-byline">
-                    {{ c.html.byline }}
+                    {{ c.byline }}
                 </div>
             </div>
             {% endfor %} {# comment #}

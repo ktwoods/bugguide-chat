@@ -1,6 +1,7 @@
 from argparse import ArgumentParser # for CL args
 from copy import copy
 from html import unescape # for later(?)
+import json
 from os.path import exists # for checking if this will overwrite an existing file
 from os import mkdir
 import re # regex
@@ -160,6 +161,49 @@ class Section:
         yield self.records
 
 
+def parse_comment(ctag) -> dict:
+    cdict = {}
+    cdict['subj'] = ctag.find(class_="comment-subject").decode_contents().strip()
+    cdict['body'] = ctag.find(class_="comment-body").decode_contents().strip()
+    cdict['byline'] = ctag.find(class_="comment-byline").decode_contents().strip()
+    # Nested reply depth — replies are wrapped in the second td of a table, and use the first td's width as the indent
+    if ctag.parent.name == 'td':
+        cdict['depth'] = int(ctag.parent.previous_sibling['width']) // 25
+    else: 
+        cdict['depth'] = 0
+    return cdict
+
+
+def parse_record(soup) -> dict:
+    rdict = {}
+    # Infer the page URL — .bgimage-id contains the text "Photo#[number]", which is the same ID number used by the record's URL
+    url_node = int(soup.find(class_="bgimage-id").get_text()[6:])
+    rdict['url'] = f"https://bugguide.net/node/view/{url_node}"
+    rdict['img'] = soup.find(class_="bgimage-image")["src"]
+    # If one or both M/F symbols are present in title, replace symbol gif with text before decoding the Tag object
+    title_tag = copy(soup.find(class_="node-title"))
+    symbols = title_tag.find_all("img")
+    if symbols:
+        # Alt text is either "Male" or "Female"
+        title_tag.append(symbols[0]['alt'].lower())
+        title_tag.img.decompose()
+        if len(symbols) == 2:
+            title_tag.append(' & ' + symbols[1]['alt'].lower())
+            title_tag.img.decompose()
+    rdict['title'] = title_tag.decode_contents().strip()
+    # div.bgimage-where-when is reliably present but may be empty
+    rdict['metadata'] = soup.find(class_="bgimage-where-when").decode_contents().strip()
+    # div.node-body is absent if the user provided no description
+    node_body = soup.find(class_="node-body")
+    rdict['remarks'] = node_body and node_body.decode_contents().strip() or ''
+    rdict['byline'] = soup.find(class_="node-byline").decode_contents().strip()
+
+    # List of comments
+    rdict['comments'] = [parse_comment(c) for c in soup.find_all(class_="comment")]
+
+    return rdict
+
+
 def make_soup(url: str) -> BeautifulSoup:
     html = urlopen(url).read().decode("utf-8")
     return BeautifulSoup(html, "html.parser", parse_only=SoupStrainer(class_="col2"))
@@ -224,21 +268,22 @@ def log_comments(comms: list, type="import") -> None:
         print(" ")
 
 
+# NOTE: ALL OF THIS IS EXPORT-RELATED CODE — just ignore this func for the import step and use parse_record() directly
 # Get data from one record page
 def process_record(soup) -> Record | None:
     """Build a Record object based on the soup and print some info about it according to user prefs"""
 
-    rec = Record(soup)
+    rec = parse_record(soup)
 
-    if not rec.comments:
+    if not rec['comments']:
         print("> No comments found")
         return None
 
     # Filter record and/or specific comments based on comment content and user args
     if args.ignore_moves:
         marked, unmarked = [], []
-        for c in rec.comments:
-            if c.style['highlight']: marked.append(c)
+        for c in rec['comments']:
+            if c['highlight']: marked.append(c)
             else: unmarked.append(c)
         # If none are highlighted, discard the record
         if not marked:
@@ -283,28 +328,29 @@ def process_list_page(soup, src: str, all_sections: list) -> None:
     
     # Pull the page sections that have image links in them
     page_sections = soup.select(".node-main, .node-main-alt")
-    for sec in page_sections:
+    for sectag in page_sections:
         # Log progress to console
-        taxon_tup = taxon_from_breadcrumbs(sec, "console")
+        taxon_tup = taxon_from_breadcrumbs(sectag, "console")
         print(f"--------\nScanning page {page} submissions for '{taxon_tup[1]}'...\n--------")
 
         # Check if this section represents a new taxon or another chunk of the previous section
-        breadcrumbs_text = sec.find(class_="bgpage-roots").get_text()
-        if not all_sections or breadcrumbs_text != all_sections[-1].title:
+        breadcrumbs_text = sectag.find(class_="bgpage-roots").get_text()
+        if not all_sections or breadcrumbs_text != all_sections[-1]['title']:
             # Last link in section breadcrumbs = this taxon's own record list
-            taxon_url = sec.find(class_="bgpage-roots").find_all("a")[-1]["href"]
+            taxon_url = sectag.find(class_="bgpage-roots").find_all("a")[-1]["href"]
             # Current url = position in parent's record list
             # Start a new section
-            all_sections.append(Section(breadcrumbs_text, *taxon_tup, own_page=taxon_url, parent_page=src))
+            secdict = dict(title=breadcrumbs_text, rank=taxon_tup[0], taxon=taxon_tup[1],
+                           own_page=taxon_url, parent_page=src, records=[])
+            all_sections.append(secdict)
         
-        for item in sec.find_all("a", recursive=False):
+        for item in sectag.find_all("a", recursive=False):
             record_url = item.get('href')
             print(f"Checking [i cyan]{record_url}")
-            sleep(9)
+            sleep(5)
 
-            record = process_record(make_soup(record_url))
-            if record:
-                all_sections[-1].records.append(record)
+            soup = make_soup(record_url)
+            all_sections[-1]['records'].append(parse_record(soup))
 
 
 # Return a probably-okay URL or die trying
@@ -444,8 +490,8 @@ if __name__ == '__main__':
     # TODO: More informative prompt text
     if not args.url:
         print("[bold]Start checking image comments on: ", end="")
-        url = input()
-    url = check_url(url)
+        args.url = input()
+    url = check_url(args.url)
 
     soup = check_soup(make_soup(url))
 
@@ -457,7 +503,7 @@ if __name__ == '__main__':
 
     env = jin.Environment(loader=jin.FileSystemLoader("templates/"))
     template = env.get_template("comments.html")
-    context = {"url": url, "parent_rank": taxon[0], "sections": []}
+    context = dict(header='', parent_rank=taxon[0], start_url=url, sections=[])
 
     # TODO: error handling for write permissions failure
     # TODO: more graceful handling of KeyboardInterrupt
@@ -480,6 +526,8 @@ if __name__ == '__main__':
                 url = next_arrow and next_arrow.parent.get('href')
         finally:
             f.write(template.render(context))
+            with open('test.json', 'w', encoding='utf-8') as jsonf:
+                json.dump(context, jsonf)
             # Reprint file name for ease of reference
             print(f"\nResults saved to '{file_name}'")
     
