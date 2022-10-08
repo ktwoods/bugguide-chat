@@ -9,27 +9,25 @@ from time import sleep # to enforce crawl-delay
 from urllib.request import urlopen # grabs a page's HTML
 
 from bs4 import BeautifulSoup # creates a navigable parse tree from the HTML
-from bs4 import Tag
+from bs4 import SoupStrainer
 import jinja2 as jin # templating engine
 from rich import print # for CL pretty
 from rich.padding import Padding
 from rich.panel import Panel
-from rich.text import Text
-import rich.repr
 
-
+# Classes for structuring the extracted data
 class Comment:
-    """Contains extracted HTML text and some simple style markers from a single comment on a record page
+    """Contains extracted HTML text and some simple style markers for a single comment on a record page
     
     Instance attributes
     -------------------
     html : dict
-        Unicode string of the contents of div.comment-subject, div.comment-body, and div.comment-byline
+        (Unicode string contents of div.comment-subject, div.comment-body, and div.comment-byline)
         subj : str
         body : str
         byline : str
     style : dict
-        Metadata for conditional styling with the templating engine
+        (Metadata for conditional styling with the templating engine)
         highlight : bool
             True if the body contains text besides "Moved from ___"
         subj_repeats : bool
@@ -38,7 +36,7 @@ class Comment:
             How much to indent a nested reply comment (converts BugGuide's 25px indent increments to multiples of 2rem)
     """
 
-    def __init__(self, tag: Tag):
+    def __init__(self, tag):
         self.html = {}
         self.style = {}
 
@@ -58,6 +56,7 @@ class Comment:
         else: 
             self.style['indent'] = 0
 
+    # Nicer print text for debugging, courtesy of rich
     def __rich_repr__(self):
         yield "style", self.style
         yield "subj", self.html['subj']
@@ -86,7 +85,7 @@ class Record:
     """
 
     def __init__(self, soup: BeautifulSoup):
-        # .bgimage-id contains the text "Photo#[number]", which is the same ID number used by the record's URL
+        # Infer the page URL — .bgimage-id contains the text "Photo#[number]", which is the same ID number used by the record's URL
         url_node = int(soup.find(class_="bgimage-id").get_text()[6:])
         self.url = f"https://bugguide.net/node/view/{url_node}"
         self.img = soup.find(class_="bgimage-image")["src"]
@@ -111,6 +110,7 @@ class Record:
         # List of comments as Comment objects
         self.comments = [Comment(c) for c in soup.find_all(class_="comment")]
 
+    # Nicer print text for debugging, courtesy of rich
     def __rich_repr__(self):
             yield "page_src", self.url
             yield "image_src", self.img
@@ -150,8 +150,9 @@ class Section:
         # Record objects
         self.records = []
 
+    # Nicer print text for debugging, courtesy of rich
     def __rich_repr__(self):
-        yield "title", self.rirlw
+        yield "title", self.title
         yield "rank", self.rank
         yield "taxon", self.taxon
         yield "self link", self.own_page
@@ -159,15 +160,20 @@ class Section:
         yield self.records
 
 
+def make_soup(url: str) -> BeautifulSoup:
+    html = urlopen(url).read().decode("utf-8")
+    return BeautifulSoup(html, "html.parser", parse_only=SoupStrainer(class_="col2"))
+
+
 # Get taxon rank and name text from breadcrumbs
-def taxon_from_breadcrumbs(tag, text_format=None) -> tuple:
+def taxon_from_breadcrumbs(soup, text_format=None) -> tuple:
     """Returns (taxon_rank : str, taxon_name : str) based on the first set of breadcrumbs found
 
     Taxon rank is based on the link's title attribute. Some BugGuide categories are non-taxonomic (e.g. "unidentified larvae" or "mostly pale spp") and use title="No Taxon", in which case this function returns "section" for taxon_rank
     
-    text_format, if present, should be one of ("console", "html") and determines if/how species and genus names are italicized; if None or an invalid format is given, will return plaintext """
+    text_format, if present, should be one of ("console", "html") and determines if/how species and genus names are italicized; if None or an unrecognized format is given, will return plaintext """
 
-    taxon_tag = tag.find(class_="bgpage-roots").find_all("a")[-1]
+    taxon_tag = soup.find(class_="bgpage-roots").find_all("a")[-1]
     taxon_rank = taxon_tag['title'].lower() if taxon_tag['title'] != 'No Taxon' else 'section'
 
     taxon = taxon_tag.get_text()
@@ -199,7 +205,7 @@ def log_comments(comms: list, type="import") -> None:
 
     # In verbose mode, also log the comment text
     if args.verbose or type == "screen":
-        # Black background is for color contrast purposes, to keep light gray text readable on an arbitrary terminal background color
+        # Black background is for color contrast purposes, to ensure light gray text is still readable on an arbitrary terminal background color
         if type == "skip":
             border = style = "bright_black i on black"
         else:
@@ -207,6 +213,7 @@ def log_comments(comms: list, type="import") -> None:
             style = "on black"
         
         for c in comms:
+            # TODO: did I write this before I uncovered decode_contents() or does it genuinely need to strip the tags via regex for some reason
             body = re.sub("<[^<]+?>", "", c.html['body'])
             subject = re.sub("<[^<]+?>", "", c.html['subj'])
             byline = re.sub("<[^<]+?>", "", c.html['byline'])
@@ -271,7 +278,7 @@ def process_list_page(soup, src: str, all_sections: list) -> None:
     try:
         page = soup.find(class_="pager").find("b").get_text()
     except AttributeError: 
-        # Single-page results don't have a pager
+        # (Single-page results don't have a pager)
         page = "1"
     
     # Pull the page sections that have image links in them
@@ -295,9 +302,7 @@ def process_list_page(soup, src: str, all_sections: list) -> None:
             print(f"Checking [i cyan]{record_url}")
             sleep(9)
 
-            html = urlopen(record_url).read().decode("utf-8")
-            soup = BeautifulSoup(html, "html.parser")
-            record = process_record(soup)
+            record = process_record(make_soup(record_url))
             if record:
                 all_sections[-1].records.append(record)
 
@@ -356,7 +361,7 @@ def check_soup(soup) -> BeautifulSoup:
     """
     while True:
         try:
-            # The "Taxonomy-Browse-Info-Images-Links-Books-Data" tabs are only present when in the Guide
+            # The "Taxonomy-Browse-Info-Images-Links-Books-Data" tabs are only visible when in the Guide
             menubar = soup.find(class_="guide-menubar")
 
             # check_url should catch the most egregious of the BugGuide-but-not-guide URLs, but as a backup check, menubar element is either absent or present but empty on non-guide pages
@@ -384,8 +389,7 @@ def check_soup(soup) -> BeautifulSoup:
             print(f"Fetching all images for [b]{taxon[1]}[/b] from {correct_url} ...")
 
             sleep(9)
-            html = urlopen(correct_url).read().decode("utf-8")
-            return BeautifulSoup(html, "html.parser")
+            return make_soup(correct_url)
         
         except RuntimeError as e:
             print("[dark_orange]" + str(e))
@@ -394,14 +398,10 @@ def check_soup(soup) -> BeautifulSoup:
 
 # Generate an output file name in accordance with args
 def name_file(taxon: str) -> str:
-    if not args.fname:
-        name = taxon
-    else:
-        # TODO: validate filename?
-        # should at minimum strip any provided extension, I think
-        name = args.fname
+    # Very bare-bones sanitization to avoid any unanticipated funny business with paths
+    name = taxon if not args.fname else re.sub('[/\.]', '', args.fname)
 
-    # Avoid overwriting files unless given permission
+    # Avoid overwriting files unless explicitly told to
     if not args.replace:
         ver = 1
         vername = name
@@ -412,7 +412,7 @@ def name_file(taxon: str) -> str:
     return "comments/"+name+".html"
 
 
-# Separating out the parser definition for ease of code block collapsing
+# Args and parser definition
 def parser() -> ArgumentParser:
     desc = "Scans BugGuide's user submissions under a particular species or other taxon, and collects submission comments that might have interesting discussions or identification tips. Default output format is an .html file with some bare-bones styling for readability."
     p = ArgumentParser(description=desc)
@@ -447,8 +447,7 @@ if __name__ == '__main__':
         url = input()
     url = check_url(url)
 
-    html = urlopen(url).read().decode("utf-8")
-    soup = check_soup(BeautifulSoup(html, "html.parser"))
+    soup = check_soup(make_soup(url))
 
     if not exists('comments'):
         mkdir('comments')
@@ -469,15 +468,13 @@ if __name__ == '__main__':
                 if not context["sections"]:
                     # Start of loop, so add the page header to context
                     title_tag = soup.find(class_="node-title")
-                    # First element of tuple has italics, second is plaintext version
+                    # (First element of tuple has italics tags, second is plaintext version, since the template needs both and Jinja doesn't want to regex within the template)
                     context["header"] = (title_tag.decode_contents(), title_tag.get_text())
                 else:
-                    # This isn't the start of the loop, so make new soup
-                    html = urlopen(url).read().decode("utf-8")
-                    soup = BeautifulSoup(html, "html.parser")
-
+                    # Not the start of the loop, so make new soup
+                    soup = make_soup(url)
+                # Do this page
                 process_list_page(soup, url, context["sections"])
-
                 # Check if there's another page to do
                 next_arrow = soup.find(alt="next page")
                 url = next_arrow and next_arrow.parent.get('href')
