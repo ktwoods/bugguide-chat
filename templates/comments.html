@@ -4,13 +4,13 @@
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BugGuide comments - {{ header[0] }}</title>
+    <title>BugGuide comments - {{ header[1] }}</title>
     <link rel="stylesheet" href="../templates/style.css">
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>{{ header[1] }}</h1>
+            <h1>{{ header[0] }}</h1>
             <div>
                 <a class="btn-link" href="{{ start_url }}">search start index</a>
             </div>
@@ -50,17 +50,17 @@
                 </div>
             </div>
             <a href="{{ rec.url }}">{{ rec.url }}</a>
-            {% for c in rec.comments %}
+            {% for com in rec.comments %}
             {# COMMENT component #}
-            <div class="comment{#{ " mark" if c.style.highlight }#}" style="margin-left: {{ c.depth * 2 }}rem">
-                <div class="comment-subject" style="{#{ "display: none" if c.style.subj_repeats }#}">
-                    {{ c.subj }}
+            <div class="comment{{ " mark" if com.highlight }}" style="margin-left: {{ com.depth * 2 }}rem">
+                <div class="comment-subject">
+                    {{ com.subj }}
                 </div>
                 <div class="comment-body">
-                    {{ c.body }}
+                    {{ com.body }}
                 </div>
                 <div class="comment-byline">
-                    {{ c.byline }}
+                    {{ com.byline }}
                 </div>
             </div>
             {% endfor %} {# comment #}

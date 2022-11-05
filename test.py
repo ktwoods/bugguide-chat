@@ -1,10 +1,16 @@
 from itertools import product
 from traceback import print_exception
 from chatfinder import *
+from rich.prompt import Prompt
+from rich.live import Live
 
 def make_test_soup(url):
     html = urlopen(url).read().decode("utf-8")
     return BeautifulSoup(html, "html.parser")
+
+
+with Live():
+    test = Prompt.ask(choices=["pause", "quit"])
 
 
 
@@ -57,7 +63,7 @@ def test_comment_processing():
                 records = []
                 print(f"\n[cyan]With...[/cyan]\n  (verbose, screen, ignore_moves) = {cfg}\n  '{url}'\n")
                 try:
-                    rec = process_record(soup)
+                    rec = filter_record(soup)
                     if rec: records.append(rec)
                 except Exception as e:
                     print(f"[dark_orange]Error: {e}[/dark_orange]\n  (verbose, screen, ignore_moves) = {cfg}\n  '{url}'")
