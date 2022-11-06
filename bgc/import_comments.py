@@ -1,23 +1,19 @@
-from argparse import ArgumentParser # for CL args
 from copy import copy
 from datetime import datetime as dt # for timestamping imports
-from glob import glob
-from html import unescape # for later(?)
 import json
-from math import ceil
 from os.path import exists # for checking if this will overwrite an existing file
 from os import mkdir
-import re # regex
-from sys import exit # "quit" in interactive mode
+import re
 from time import sleep # enforces crawl-delay
 from urllib.request import urlopen # grabs a page's HTML
 
 from bs4 import BeautifulSoup # creates a navigable parse tree from the HTML
 from bs4 import SoupStrainer
-import jinja2 as jin # templating engine
-from rich import print # for pretty CLI
-from rich.padding import Padding
-from rich.panel import Panel
+from rich import print
+
+from helper import *
+
+global args
 
 # Section docstring, if necessary later
 """Contains metadata and records pulled from a section within a specific taxon
@@ -50,105 +46,6 @@ def get_taxon(soup) -> tuple:
     taxon_rank = taxon_tag['title'].lower() if taxon_tag['title'] != 'No Taxon' else 'section'
     taxon = taxon_tag.get_text()
     return taxon_rank, taxon
-
-
-# Log results for one processed record to the terminal
-def log_comments(comms: list, src, type="import") -> None:
-    """Print an update to the terminal for this set of comments"""
-    if comms == None:
-        return
-
-    # Log action being taken
-    s = 's' if len(comms) != 1 else ''
-    if type == "skip":
-        print(f"> [i]Skipping {len(comms)} comment{s} from {src}")
-    elif type == "screen":
-        print(f"> {len(comms)} comment{s} found on {src}")
-    elif type != "import":
-        raise ValueError("Log type must be in ['import', 'skip', 'screen']")
-
-    # In verbose mode, also log the comment text
-    if args.verbose or type == "screen":
-        if type == "skip":
-            border = "dim cyan"
-            style = "dim cyan i"
-        else:
-            border = "cyan"
-            style = "none"
-        
-        for c in comms:
-            body = re.sub("<[^<]+?>", "", c['body'])
-            subject = re.sub("<[^<]+?>", "", c['subj'])
-            byline = re.sub("<[^<]+?>", "", c['byline'])
-            print(Padding(Panel(body, 
-                                title=subject, title_align="left", 
-                                subtitle=byline, subtitle_align="left", 
-                                style=style, border_style=border), (1,4,0,4)))
-        print(" ")
-
-
-def screen_record(rec):
-    log_comments(rec['comments'], rec['url'], "screen")
-    # Prompt user
-    print("[bold]Export associated record?[/bold]\n"
-            "    [b cyan]y[/b cyan] -> [b cyan]yes[/b cyan]\n"
-            "    [b cyan]n[/b cyan] -> [b cyan]no[/b cyan]\n"
-            "    [b cyan]a[/b cyan] -> [b cyan]auto[/b cyan]-export remaining records\n"
-            "    [b cyan]q[/b cyan] -> skip remaining records and [b cyan]quit[/b cyan] \n>>> ", end="")
-    cmd = input().strip().lower()
-    while cmd not in ['y', 'yes', 'n', 'no', 'a', 'auto', 'q', 'quit']:
-        print("[magenta]Command not recognized — please enter one of the options above[/magenta] \n>>> ", end="")
-        cmd = input().strip().lower()
-    print(" ")
-    if cmd[0] == 'y':
-        print(f"> [i]Exporting {len(rec['comments'])} comment{'s' if len(rec['comments']) != 1 else ''}")
-        return rec
-    elif cmd[0] == 'n':
-        print("> [i]Record skipped")
-        return None
-    elif cmd[0] == 'a':
-        args.screen = False
-        args.verbose = False
-    else:
-        exit()
-
-
-# Process the comments from one record for export, according to user options
-def filter_record(rec):
-    if not rec['comments']:
-        print("> No comments found at", rec['url'])
-        return None
-
-    # Add some styling metadata to the comment
-    for c in rec['comments']:
-        # Skip subject lines where the user didn't provide one so BG just filled it with body text
-        if c['body'][:len(c['subj'])] == c['subj']:
-            c['subj'] = ''
-        # Highlight comments that have text other than (or in addition to) "Moved from ___"
-        c['highlight'] = not re.match('Moved from .+\.\s*$', c['body'], flags=re.I)
-
-    # Filter record and/or specific comments based on comment content and user args
-    if args.ignore_moves:
-        marked, unmarked = [], []
-        for c in rec['comments']:
-            if c['highlight']: marked.append(c)
-            else: unmarked.append(c)
-        # If none are highlighted, discard the record
-        if not marked:
-            log_comments(rec['comments'], rec['url'], "skip")
-            return None
-        if args.ignore_moves == "always":
-            # If skipping all move comments, only keep highlighted comments
-            if unmarked:
-                log_comments(unmarked, rec['url'], "skip")
-            rec['comments'] = marked
-    
-    # Manual screen after filtering, if applicable
-    if args.screen:
-        screen_record(rec)
-
-    log_comments(rec['comments'], rec['url'])
-    return rec
 
 
 def parse_comment(ctag) -> dict:
@@ -375,8 +272,10 @@ def check_soup(soup) -> BeautifulSoup:
 
 # TODO: add pgcount and imgcount args!
 # (valid args so far: --url, --verbose)
-def import_taxon():
+def import_taxon(cfg):
     # TODO: More informative prompt text
+    args = cfg
+    print(args)
 
     if not args.url:
         print("[bold]Start checking image comments on: ", end="")
@@ -386,18 +285,18 @@ def import_taxon():
     rank, taxon = get_taxon(soup)
 
     # TODO: appendable files?
-    if not exists('data'):
-        mkdir('data')
+    if not exists('../data'):
+        mkdir('../data')
     file_name = taxon
     # Avoid overwriting files unless explicitly told to
     if not args.replace:
         ver = 1
         vername = file_name
-        while exists("data/"+vername+".json"):
+        while exists("../data/"+vername+".json"):
             vername = f"{file_name} ({ver})"
             ver += 1
         file_name = vername
-    file_name = "data/"+file_name+".json"
+    file_name = "../data/"+file_name+".json"
 
     dtstamp = dt.isoformat(dt.now(), ' ', 'seconds')
     context = dict(snapshot_date=dtstamp, header='', parent_rank=rank, start_url=url, sections=[])
@@ -430,152 +329,3 @@ def import_taxon():
             # Reprint file name for ease of reference
             print(f"\nResults saved to '{file_name}'")
 
-
-# TODO: add chrono arg!
-# (much function, very placeholder)
-def export_taxon():
-    # Check for the given taxon name
-    fname_in = f"data/{args.taxon}.json"
-
-    # TODO: actual error handling
-    if not exists(fname_in):
-        print('uh oh...')
-    
-    with open(fname_in, "r", encoding="utf-8") as fin:
-        context = json.load(fin)
-    
-    if not exists('comments'):
-        mkdir('comments')
-    
-    # Pick an output file name
-    # TODO: file path validation?
-    fname_out = args.fname or args.taxon
-
-    # Avoid overwriting files unless explicitly told to
-    if not args.replace:
-        ver = 1
-        vername = fname_out
-        while exists("comments/"+vername+".html"):
-            vername = f"{fname_out} ({ver})"
-            ver += 1
-        fname_out = vername
-    fname_out = "comments/"+fname_out+".html"
-
-    # Set up html template and process the records
-    env = jin.Environment(loader=jin.FileSystemLoader("templates/"))
-    template = env.get_template("comments.html")
-    with open(fname_out, "w", encoding="utf-8") as fout:
-        try:
-            for sec_idx, sec in enumerate(context['sections']):
-                filtered = []
-                for rec in sec['records']:
-                    try:
-                        r = filter_record(rec)
-                        if r:
-                            filtered.append(r)
-                    except (RuntimeError, SystemExit) as e:
-                        # Only what's been successfully filtered should get exported
-                        if filtered:
-                            sec['records'] = filtered
-                            context['sections'] = context['sections'][:sec_idx+1]
-                        else:
-                            context['sections'] = context['sections'][:sec_idx]
-                        raise
-                # Drop records that didn't pass screening
-                sec['records'] = filtered
-        finally:
-            # Always write to file, even if stopped by an error
-            fout.write(template.render(context))
-
-
-# Print some summary info about the .json files that have been generated so far
-def list_snapshots():
-    snapfiles = sorted(glob('data/*.json'))
-    for fname in snapfiles:
-        with open(fname, 'r') as f:
-            snap = json.load(f)
-
-        title = "Snapshot: [b]" + fname
-        body = "[b cyan]" + snap['header']['plain'] + "[/b cyan]\n\n"
-        body += f"[cyan][b]Start point on[/b] {snap['snapshot_date']}:[/cyan] {snap['start_url']}\n"
-
-        sections = {}
-        total_recs = recs_with_comments = 0
-        for sec in snap['sections']:
-            name = sec['rank'] + " " + sec['taxon']
-            sections[name] = {'first': sec['records'][0]['url'], 
-                              'last': sec['records'][-1]['url']}
-            total_recs += len(sec['records'])
-            recs_with_comments += len([1 for r in sec['records'] if r['comments']])
-        body += f"{total_recs} total records scanned (about {ceil(total_recs/24)} pages), {recs_with_comments} with comments\n\n"
-        body += "[b cyan]Sections:[/b cyan]"
-        for name, urls in sections.items():
-            body += f"\n* {name}" \
-                 + f"\n   -  [cyan]Most recent record:[/cyan] {urls['first']}" \
-                 + f"\n   -  [cyan]Oldest record:[/cyan]      {urls['last']}"
-        
-        print(Padding(Panel(body, title=title, title_align="left",
-                            border_style="none", highlight=True), (1,4,0,4)))
-
-
-# Args and parser definition
-def argparser() -> ArgumentParser:
-    # TODO: EDIT ALL OF THIS
-    desc = "Scans BugGuide's user submissions under a particular species or other taxon, and collects submission comments that might have interesting discussions or identification tips.\nAll records encountered during import have their metadata saved as a JSON file, if you have other scripts you might want to process that data with, but the built-in export options assume that you're only interested in records with comments that match the given set of filters."
-    parser = ArgumentParser(description=desc)
-
-    subparsers = parser.add_subparsers(dest='action', title='tasks')
-
-    # IMPORT
-    importer = subparsers.add_parser('import', help='download record data for taxon')
-    importer.set_defaults(func=import_taxon)
-    # -u, --url [url]
-    importer.add_argument('-u', '--url',
-                          help='starting URL; must be associated with the guide for a specific taxon; if this doesn\'t link directly into the guide\'s image list, it will find the associated image list and start on page 1')
-    # --pgcount | --imgcount
-    importer.add_argument('-p', '--pgcount', type=int, default=-1,
-                          help='stop after checking this many pages in the Images tab')
-    importer.add_argument('-i', '--imgcount', type=int, default=-1,
-                          help='stop after checking this many images')
-    # -r, --replace
-    importer.add_argument('-r', '--replace', action="store_true",
-                        help='overwrite existing data for this taxon')
-    # -v, --verbose
-    importer.add_argument('-v', '--verbose', action="store_true",
-                          help='print comment text as comments are encountered')
-
-    # EXPORT
-    exporter = subparsers.add_parser('export', help='export previously-imported snapshot of taxon records to file')
-    exporter.set_defaults(func=export_taxon)
-    # TODO: what are we exporting
-    # taxon (positional arg)
-    exporter.add_argument('taxon',
-                         help='')
-    # --screen
-    exporter.add_argument('--screen', action="store_true",
-                        help='interactive mode: print each set of comments found and ask for user approval before exporting them')
-    # -i, --ignore-moves ['always' or 'nochat']
-    exporter.add_argument('--ignore-moves', choices=['always', 'nochat'],
-                        help='skip auto-generated move comments from editors ("Moved from Potter and Mason Wasps.") unless the editor added additional commentary to the body text; "nochat" only skips if *all* of the comments are move comments, to preserve conversational context about misclassifications')
-    # --fname [filename]
-    exporter.add_argument('--fname',
-                        help='name for .html output file; otherwises uses taxon name')
-    # -r, --replace
-    exporter.add_argument('-r', '--replace', action="store_true",
-                        help='if a file with this name already exists, overwrite it')
-    # -v, --verbose
-    exporter.add_argument('-v', '--verbose', action="store_true",
-                          help='print comment text as comments are encountered')
-
-    # BROWSE
-    browser = subparsers.add_parser('list', help='print details about what you\'ve downloaded so far')
-    browser.set_defaults(func=list_snapshots)
-
-    return parser
-
-
-if __name__ == '__main__':
-    global args
-    args = argparser().parse_args()
-    args.func()
-    

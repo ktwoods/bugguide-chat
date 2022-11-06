@@ -1,6 +1,6 @@
 from itertools import product
 from traceback import print_exception
-from chatfinder import *
+from __main__ import *
 from rich.prompt import Prompt
 from rich.live import Live
 
