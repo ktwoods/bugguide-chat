@@ -1,4 +1,4 @@
-# \[WIP\] BugGuideChatter: a helper bot for finding comments on BugGuide
+# \[WIP\] BugGuideChatter: a helper bot for finding neat comments on BugGuide
 (* *Project name subject to change, I am terrible at naming things and have waffled between at least six versions already*)
 
 
