@@ -6,9 +6,9 @@ from rich import print
 
 
 # Log results for one processed record to the terminal
-def log_comments(comms: list, src, type="import") -> None:
+def log_comments(comms: list, src: str, type="import", verbose=False) -> None:
     """Print an update to the terminal for this set of comments"""
-    if comms == None:
+    if not comms:
         return
 
     # Log action being taken
@@ -17,11 +17,13 @@ def log_comments(comms: list, src, type="import") -> None:
         print(f"> [i]Skipping {len(comms)} comment{s} from {src}")
     elif type == "screen":
         print(f"> {len(comms)} comment{s} found on {src}")
-    elif type != "import":
+    elif type == "import":
+        print(f"> Saved {len(comms)} comment{s}")
+    else:
         raise ValueError("Log type must be in ['import', 'skip', 'screen']")
 
     # In verbose mode, also log the comment text
-    if args.verbose or type == "screen":
+    if verbose or type == "screen":
         if type == "skip":
             border = "dim cyan"
             style = "dim cyan i"

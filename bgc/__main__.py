@@ -6,7 +6,7 @@ from list import *
 
 
 # Args and parser definition
-def argparser() -> ArgumentParser:
+def main():
     # TODO: EDIT ALL OF THIS
     desc = "Scans BugGuide's user submissions under a particular species or other taxon, and collects submission comments that might have interesting discussions or identification tips.\nAll records encountered during import have their metadata saved as a JSON file, if you have other scripts you might want to process that data with, but the built-in export options assume that you're only interested in records with comments that match the given set of filters."
     parser = ArgumentParser(description=desc)
@@ -17,7 +17,7 @@ def argparser() -> ArgumentParser:
     importer = subparsers.add_parser('import', help='download record data for taxon')
     importer.set_defaults(func=import_taxon)
     # -u, --url [url]
-    importer.add_argument('url',
+    importer.add_argument('-u', '--url',
                           help='starting URL, which must be associated with the guide for a specific taxon (if this doesn\'t link directly into the guide\'s image list, it will find the associated image list and start on page 1)')
     # --pgcount | --imgcount
     importer.add_argument('-p', '--pgcount', type=int, default=-1,
@@ -58,10 +58,9 @@ def argparser() -> ArgumentParser:
     browser = subparsers.add_parser('list', help='print details about what you\'ve downloaded so far')
     browser.set_defaults(func=list_snapshots)
 
-    return parser
-
-
-if __name__ == '__main__':
-    args = argparser().parse_args()
+    # Parse CL args
+    args = parser.parse_args()
     args.func(args)
-    
+
+
+main()

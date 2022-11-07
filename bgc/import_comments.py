@@ -1,6 +1,7 @@
 from copy import copy
 from datetime import datetime as dt # for timestamping imports
 import json
+from math import ceil
 from os.path import exists # for checking if this will overwrite an existing file
 from os import mkdir
 import re
@@ -10,10 +11,10 @@ from urllib.request import urlopen # grabs a page's HTML
 from bs4 import BeautifulSoup # creates a navigable parse tree from the HTML
 from bs4 import SoupStrainer
 from rich import print
+from rich.prompt import Prompt, IntPrompt, Confirm, InvalidResponse
 
 from helper import *
 
-global args
 
 # Section docstring, if necessary later
 """Contains metadata and records pulled from a section within a specific taxon
@@ -174,117 +175,153 @@ def process_list_page(soup, src: str, all_sections: list) -> None:
             if not record['comments']:
                 print("> No comments found")
             else:
-                if args.verbose:
-                    log_comments(record['comments'], record['url'])
-                else:
-                    ncom = len(record['comments'])
-                    print(f"Saved {ncom} comment{'s' if ncom != 1 else ''}")
+                log_comments(record['comments'], record['url'], verbose=args.verbose)
             
             args.imgcount -= 1
             if args.imgcount == 0:
                 exit(0)
 
 
-# Return a probably-okay URL or die trying
-def check_url(url: str) -> str:
-    """
-    Does some basic checks on the user-provided URL string, and asks the user for a new URL if it fails, returning whatever succeeds
+def validate_page(soup):
+    # The "Taxonomy-Browse-Info-Images-Links-Books-Data" tabs are only visible when in the Guide (otherwise the menubar element is either absent or present but empty)
+    menubar = soup.find(class_="guide-menubar")
+    if not menubar or not menubar.get_text():
+        raise InvalidResponse("[magenta]Hmm, this doesn't look like a guide page!\nI need a starting point in the Images tab for a particular type of bug — something that looks like this: 'https://bugguide.net/node/view/9137/bgimage'")
     
-    If a user provides a URL that is a BugGuide page and is associated with a particular taxon, but is for the wrong section of its guide, will return a corrected version of that URL
-    """
+    # If current tab is "Images", great, we're all set
+    img_tab = menubar.find(string="Images").parent
+    if img_tab.name != 'a' and img_tab['class'].count("guide-menubar-selected"):
+        return soup
     
-    while True:
-        try:
-            # TODO: Does this even look like a URL?
+    # Any unexpected URLs that made it this far are part of the guide for a specific taxon, just the wrong part
 
-            # Is this from the Secret Beta Version?
-            if "beta.bugguide.net" in url:
-                raise RuntimeError("Sorry, scanning the beta site is unsupported")
-
-            # Is this obviously not a BugGuide URL?
-            if "bugguide.net" not in url:
-                raise RuntimeError("Hey, this isn't BugGuide!")
-
-            # Is this a BugGuide URL but obviously not part of the guide?
-            if not re.search("bugguide\.net/node/view/\d+", url):
-                raise RuntimeError("Oops, this isn't a guide page!")
-
-            # Is this a URL for one of the other Guide tabs? (excluding "Info," which has no suffix and so can't be identified by URL alone)
-            wrong_tab = re.search("bugguide\.net/node/view/\d+/(tree|bgpage|bglink|bgref|data)", url)
-            if wrong_tab:
-                # If so, it can be corrected without fetching the wrong page first
-                url = url[:wrong_tab.start(1)] + "bgimage"
-                print(f"Not an images page, adjusting URL to {url} ...")
-                sleep(3)
-
-            return url
-        
-        except RuntimeError as e:
-            print("[magenta]" + str(e))
-            url = input("Please enter another URL >>> ")
-
-
-# Return some okay soup or die trying
-def check_soup(soup) -> BeautifulSoup:
-    """
-    Checks that this is the right kind of BugGuide page, i.e. part of the images list for a particular taxon/group, and asks the user for a new URL if not
-    
-    If a user provides a URL for the Info tab of a particular taxon, will navigate to the start of the images list and return the soup for that instead
-    """
-    while True:
-        try:
-            # The "Taxonomy-Browse-Info-Images-Links-Books-Data" tabs are only visible when in the Guide
-            menubar = soup.find(class_="guide-menubar")
-
-            # check_url should catch the most egregious of the BugGuide-but-not-guide URLs, but as a backup check, menubar element is either absent or present but empty on non-guide pages
-            if not menubar or not menubar.get_text():
-                raise RuntimeError("Oops, this isn't a guide page!")
-            
-            # If current tab is "Images", great, we're all set
-            img_tab = menubar.find(string="Images").parent
-            if img_tab.name != 'a' and img_tab['class'].count("guide-menubar-selected"):
-                return soup
-            
-            # Unexpected URLs that made it this far are part of the guide for a specific taxon, just the wrong part; find the associated correct URL and use that
-            correct_url = img_tab["href"]
-
-            # Pull the taxon name from the page breadcrumbs for more helpful error messaging, since we're already here
-            rank, taxon = get_taxon(soup)
-            if 'genus' in rank or 'species' in rank:
-                taxon = '[i]' + taxon + '[/i]'
-
-            # If no tab is currently selected, this is an individual record page
-            if not menubar.find(class_="guide-menubar-selected"):
-                print(f"URL is for a record in {rank} [b]{taxon}[/b]")
-            # Otherwise some other tab (i.e. "Info") is selected
-            else:
-                print(f"URL is for another guide page in {rank} [b]{taxon}[/b]")
-            
-            print(f"Fetching all images for [b]{taxon}[/b] from {correct_url} ...")
-
-            sleep(9)
-            return make_soup(correct_url)
-        
-        except RuntimeError as e:
-            print("[magenta]" + str(e))
-            url = check_url(input("Please enter another URL >>> "))
-
-
-# TODO: add pgcount and imgcount args!
-# (valid args so far: --url, --verbose)
-def import_taxon(cfg):
-    # TODO: More informative prompt text
-    args = cfg
-    print(args)
-
-    if not args.url:
-        print("[bold]Start checking image comments on: ", end="")
-        args.url = input()
-    url = check_url(args.url)
-    soup = make_soup(url)
+    # Pull the taxon name from the page breadcrumbs for more specific error messaging, since we're already here
     rank, taxon = get_taxon(soup)
+    if 'genus' in rank or 'species' in rank:
+        taxon = '[i]' + taxon + '[/i]'
 
-    # TODO: appendable files?
+    # If no tab is currently selected, this is an individual record page
+    if not menubar.find(class_="guide-menubar-selected"):
+        print(f"URL is for a record in {rank} [b]{taxon}[/b]")
+    # Otherwise some other tab (i.e. "Info") is selected
+    else:
+        print(f"URL is for another guide page in {rank} [b]{taxon}[/b]")
+    
+    correct_url = img_tab["href"]
+    confirm = Confirm.ask(f"Do you want me to start on page 1 of the images for this taxon? ({correct_url})")
+    if confirm:
+        return make_soup(correct_url)
+    return None
+
+
+class URLPrompt(Prompt):
+    def process_response(self, url: str):
+        url = url.strip()
+        if url in ['q', 'quit', 'exit']:
+            exit(0)
+
+        # Is this obviously not a BugGuide URL?
+        if "bugguide.net" not in url:
+            raise InvalidResponse("[magenta i]This doesn't look like BugGuide!")
+
+        # Is this from the Secret Beta Site?
+        if "beta.bugguide.net" in url:
+            url = url.replace("beta.", "")
+            print(f"[magenta i]Sorry, I don't know how to read the beta site; switching to '{url}' ...")
+
+        # Is this a BugGuide URL but not part of the Guide™?
+        if not re.search("bugguide\.net/node/view/\d+", url):
+            raise InvalidResponse("[magenta][i]This doesn't look like a guide page![/i] I need a starting point in the Images tab for a particular type of bug — something that looks like this: 'https://bugguide.net/node/view/9137/bgimage'")
+
+        # Is this a URL for one of the other Guide tabs? (excluding "Info," which has no suffix and so can't be identified by URL alone)
+        wrong_tab = re.search("bugguide\.net/node/view/\d+/(tree|bgpage|bglink|bgref|data)", url)
+        if wrong_tab:
+            # If so, it can be corrected without fetching the wrong page first
+            url = url[:wrong_tab.start(1)] + "bgimage"
+            print(f"[magenta i]This doesn't look like a page with photos, let's try {url} ...")
+
+        # The rest of potential parsing errors have to be checked against the actual page
+        try:
+            soup = make_soup(url)
+        except Exception as err:
+            raise InvalidResponse("[magenta][i]I ran into a problem loading this page: [/i]" + err.args[0])
+
+        soup = validate_page(soup)
+        if not soup: # User wants to try a different URL
+            raise InvalidResponse("") # Keep going with the prompt loop
+
+        return url, soup
+
+
+class PosIntPrompt(IntPrompt):
+    validate_error_message = "[magenta]Please enter a valid number"
+
+    def process_response(self, value: str):
+        value = super().process_response(value)
+        if value <= 0:
+            raise InvalidResponse("[magenta]Number needs to be greater than 0")
+        return value
+
+
+def import_taxon(cfg):
+    global args
+    args = cfg
+    setup = True if not args.url else False
+    PG_THRESHOLD = 20
+    
+    if setup:
+        url, soup = URLPrompt.ask("[b]Enter a URL to start searching on[/b] (or enter \"q\" to quit)")
+    else:
+        url = args.url
+        soup = validate_page(make_soup(url))
+
+    rank, taxon = get_taxon(soup)
+    # Check page's pager
+    pager = soup.find(class_="pager")
+    if not pager: # First and only page
+        tot_pages = start = 1
+    elif len(pager.contents) != 5: # Last (but not only) page
+        tot_pages = start = pager.contents[2].find("b").get_text()
+    else:
+        start = pager.contents[2].find("b").get_text()
+        pager_end = pager.contents[-1].a
+        if pager_end: # Somewhere in the middle, final page num may not be visible
+            end_url = pager.get("href")
+            end_count = int(re.search("(from=)(\d+)$", end_url).group(2))
+            tot_pages = ceil(end_count / 24 + 1)
+        else: # On the last page
+            tot_pages = start
+    
+    print(f"Found {tot_pages} total pages for '{taxon}' (starting on page {start})")
+    confirm = Confirm.ask("Continue?")
+    if not confirm:
+        exit(0)
+
+    if setup:
+        print(f"Limit results by:\n  1 = number of images\n  2 = number of pages\n  3 = neither (default is {PG_THRESHOLD} pages)")
+        limit = Prompt.ask("", choices=["1", "2", "3", "q"], default="3", show_default=False)
+        if limit == "q":
+            exit(0)
+        elif limit == "1":
+            args.imgcount = PosIntPrompt.ask("Check this many images (24 photos per page)")
+        elif limit == "2":
+            args.pgcount = PosIntPrompt.ask("Check this many pages of results")
+        if args.pgcount > PG_THRESHOLD or args.imgcount > 24 * PG_THRESHOLD:
+            confirm = Confirm.ask(f"This is more than {PG_THRESHOLD} pages of results. The search speed will get much slower after {PG_THRESHOLD} pages. Do you want to continue?")
+            if not confirm:
+                exit(0)
+        
+        args.replace = Confirm.ask("Overwrite any previous files for this taxon?")
+        args.verbose = Confirm.ask("Print comment text here as I go?")
+        print(f"Starting search! To repeat this search without going through setup, use:",
+              f"\n\t[cyan]bgc import -u {url}",
+              f"{'-p ' + str(args.pgcount) if args.pgcount != -1 else ''}",
+              f"{'-i ' + str(args.imgcount) if args.imgcount != -1 else ''}",
+              f"{'-v' if args.verbose else ''} {'-r' if args.replace else ''}")
+
+    imgcap = args.imgcount
+    pgcap = args.pgcount
+    
     if not exists('../data'):
         mkdir('../data')
     file_name = taxon
@@ -301,8 +338,6 @@ def import_taxon(cfg):
     dtstamp = dt.isoformat(dt.now(), ' ', 'seconds')
     context = dict(snapshot_date=dtstamp, header='', parent_rank=rank, start_url=url, sections=[])
 
-    # TODO: error handling for write permissions failure?
-    # TODO: more graceful handling of KeyboardInterrupt
     with open(file_name, "w", encoding="utf-8") as f:
         try:
             # While there's still pages of results to fetch:
@@ -324,8 +359,19 @@ def import_taxon(cfg):
                 # Check if there's another page to do
                 next_arrow = soup.find(alt="next page")
                 url = next_arrow and next_arrow.parent.get('href')
+        except KeyboardInterrupt:
+            print("\n[magenta]Ending scan...")
+        # except Exception as e:
+            # print("\n[magenta]Error encountered:", e.args)
         finally:
             json.dump(context, f, indent=4)
+            # Print reason for finishing
+            if not args.imgcount:
+                print(f"\nFinished checking {imgcap} image{'s' if imgcap != 1 else ''}!")
+            elif not args.pgcount:
+                print(f"\nFinished checking {pgcap} page{'s' if pgcap != 1 else ''}!")
+            elif not url:
+                print("\nReached end of list!")
             # Reprint file name for ease of reference
-            print(f"\nResults saved to '{file_name}'")
+            print(f"Results saved to '{file_name}'")
 

@@ -73,7 +73,9 @@ def filter_record(rec):
 
 # TODO: add chrono arg!
 # (much function, very placeholder)
-def export_taxon(args):
+def export_taxon(cfg):
+    global args 
+    args = cfg
     # Check for the given taxon name
     fname_in = f"data/{args.taxon}.json"
 
